@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+
+  
+  <title>Docker安装GitLab并启用Nginx代理HTTPS | Hteen</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="description" content="基于docker安装gitlab, 并使用nginx代理实现https访问仓库">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Docker安装GitLab并启用Nginx代理HTTPS">
+<meta property="og:url" content="http://example.com/2017/2285d9c24551/index.html">
+<meta property="og:site_name" content="Hteen">
+<meta property="og:description" content="基于docker安装gitlab, 并使用nginx代理实现https访问仓库">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://cdn2.hteen.cn/public/awrhk.jpg">
+<meta property="article:published_time" content="2017-05-16T07:57:45.000Z">
+<meta property="article:modified_time" content="2020-10-06T04:54:57.694Z">
+<meta property="article:author" content="hteen">
+<meta property="article:tag" content="docker">
+<meta property="article:tag" content="nginx">
+<meta property="article:tag" content="proxy">
+<meta property="article:tag" content="gitlab">
+<meta property="article:tag" content="https">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://cdn2.hteen.cn/public/awrhk.jpg">
+  
+  
+    <link rel="icon" href="/favicon.png">
+  
+  
+    <link href="//fonts.googleapis.com/css?family=Source+Code+Pro" rel="stylesheet" type="text/css">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 5.2.0"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">Hteen</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+        <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://example.com"></form>
+      </div>
+    </div>
+  </div>
+</header>
+      <div class="outer">
+        <section id="main"><article id="post-2017-05-16-Docker安装GitLab并启用Nginx代理HTTPS" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2017/2285d9c24551/" class="article-date">
+  <time datetime="2017-05-16T07:57:45.000Z" itemprop="datePublished">2017-05-16</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      Docker安装GitLab并启用Nginx代理HTTPS
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <blockquote class="blockquote-center">
+    基于docker安装gitlab, 并使用nginx代理实现https访问仓库
+</blockquote>
+
+<a id="more"></a>
+
+<h2 id="准备工作"><a href="#准备工作" class="headerlink" title="准备工作"></a>准备工作</h2><ul>
+<li>域名 <code>foo.bar.com</code></li>
+<li>域名SSL证书</li>
+<li>Nginx代理镜像 <a target="_blank" rel="noopener" href="https://hub.docker.com/r/jwilder/nginx-proxy/">jwilder/nginx-proxy</a></li>
+<li>GitLab中文镜像 <a target="_blank" rel="noopener" href="https://hub.docker.com/r/twang2218/gitlab-ce-zh/">twang2218/gitlab-ce-zh</a></li>
+</ul>
+<h2 id="创建Nginx代理容器"><a href="#创建Nginx代理容器" class="headerlink" title="创建Nginx代理容器"></a>创建Nginx代理容器</h2><p>创建自定义网络, 仅仅是为了方便维护, 也可以不创建使用默认的</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker network create proxy</span><br></pre></td></tr></table></figure>
+
+<p>创建代理容器</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">docker run --name proxy --network proxy -d -p 80:80 -p 443:443 \</span><br><span class="line">    -v &#x2F;data&#x2F;ssl:&#x2F;etc&#x2F;nginx&#x2F;certs \</span><br><span class="line">    -v &#x2F;var&#x2F;run&#x2F;docker.sock:&#x2F;tmp&#x2F;docker.sock:ro \</span><br><span class="line">    jwilder&#x2F;nginx-proxy</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>需要将SSL证书挂载到容器内 <code>/etc/nginx/certs</code> 以启用域名HTTPS访问</p>
+</blockquote>
+<h2 id="创建GitLab容器"><a href="#创建GitLab容器" class="headerlink" title="创建GitLab容器"></a>创建GitLab容器</h2><p>由于GitLab配置参数太多所以使用<a target="_blank" rel="noopener" href="https://docs.docker.com/compose/">docker-compose</a></p>
+<p>创建相应的数据目录和docker-compose.yml</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">mkdir -p &#x2F;data&#x2F;gitlab&#x2F;&#123;config,data,logs&#125;</span><br><span class="line">cd &#x2F;data&#x2F;gitlab</span><br><span class="line">vim docker-compose.yml</span><br></pre></td></tr></table></figure>
+
+<p>docker-compose.yml 文件内容</p>
+<figure class="highlight yml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">version:</span> <span class="string">&#x27;2&#x27;</span></span><br><span class="line"><span class="attr">services:</span></span><br><span class="line">    <span class="attr">gitlab:</span></span><br><span class="line">      <span class="attr">image:</span> <span class="string">&#x27;twang2218/gitlab-ce-zh&#x27;</span></span><br><span class="line">      <span class="attr">restart:</span> <span class="string">unless-stopped</span></span><br><span class="line">      <span class="attr">hostname:</span> <span class="string">&#x27;foo.bar.com&#x27;</span></span><br><span class="line">      <span class="attr">environment:</span></span><br><span class="line">        <span class="attr">VIRTUAL_HOST:</span> <span class="string">&#x27;foo.bar.com&#x27;</span></span><br><span class="line">        <span class="attr">TZ:</span> <span class="string">&#x27;Asia/Shanghai&#x27;</span></span><br><span class="line">        <span class="attr">GITLAB_OMNIBUS_CONFIG:</span> <span class="string">|</span></span><br><span class="line">          <span class="string">external_url</span> <span class="string">&#x27;https://foo.bar.com&#x27;</span> <span class="comment">#启用HTTPS域名</span></span><br><span class="line">          <span class="string">gitlab_rails[&#x27;time_zone&#x27;]</span> <span class="string">=</span> <span class="string">&#x27;Asia/Shanghai&#x27;</span></span><br><span class="line">          <span class="comment"># 需要配置到 gitlab.rb 中的配置可以在这里配置，每个配置一行，注意缩进。</span></span><br><span class="line">          <span class="comment"># 比如下面的电子邮件的配置：</span></span><br><span class="line">          <span class="comment"># gitlab_rails[&#x27;smtp_enable&#x27;] = true</span></span><br><span class="line">          <span class="comment"># gitlab_rails[&#x27;smtp_address&#x27;] = &quot;smtp.exmail.qq.com&quot;</span></span><br><span class="line">          <span class="comment"># gitlab_rails[&#x27;smtp_port&#x27;] = 465</span></span><br><span class="line">          <span class="comment"># gitlab_rails[&#x27;smtp_user_name&#x27;] = &quot;xxxx@xx.com&quot;</span></span><br><span class="line">          <span class="comment"># gitlab_rails[&#x27;smtp_password&#x27;] = &quot;password&quot;</span></span><br><span class="line">          <span class="comment"># gitlab_rails[&#x27;smtp_authentication&#x27;] = &quot;login&quot;</span></span><br><span class="line">          <span class="comment"># gitlab_rails[&#x27;smtp_enable_starttls_auto&#x27;] = true</span></span><br><span class="line">          <span class="comment"># gitlab_rails[&#x27;smtp_tls&#x27;] = true</span></span><br><span class="line">          <span class="comment"># gitlab_rails[&#x27;gitlab_email_from&#x27;] = &#x27;xxxx@xx.com&#x27;</span></span><br><span class="line">          </span><br><span class="line">          <span class="comment"># 支持代理SSL需要增加以下配置</span></span><br><span class="line">          <span class="string">nginx[&#x27;listen_port&#x27;]</span> <span class="string">=</span> <span class="number">80</span></span><br><span class="line">          <span class="string">nginx[&#x27;listen_https&#x27;]</span> <span class="string">=</span> <span class="literal">false</span></span><br><span class="line">          <span class="string">nginx[&#x27;proxy_set_headers&#x27;]</span> <span class="string">=</span> &#123;</span><br><span class="line">            <span class="string">&quot;X-Forwarded-Proto&quot;</span> <span class="string">=&gt;</span> <span class="string">&quot;https&quot;</span>,</span><br><span class="line">            <span class="string">&quot;X-Forwarded-Ssl&quot;</span> <span class="string">=&gt;</span> <span class="string">&quot;on&quot;</span></span><br><span class="line">          &#125;</span><br><span class="line">      <span class="attr">volumes:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="string">/data/gitlab/config:/etc/gitlab</span></span><br><span class="line">        <span class="bullet">-</span> <span class="string">/data/gitlab/data:/var/opt/gitlab</span></span><br><span class="line">        <span class="bullet">-</span> <span class="string">/data/gitlab/logs:/var/log/gitlab</span></span><br><span class="line"><span class="attr">networks:</span></span><br><span class="line">  <span class="attr">default:</span></span><br><span class="line">    <span class="attr">external:</span></span><br><span class="line">      <span class="attr">name:</span> <span class="string">proxy</span> <span class="comment">#容器创建时默认网络使用之前创建好的</span></span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>GitLab支持代理SSL<a target="_blank" rel="noopener" href="https://docs.gitlab.com.cn/omnibus/settings/nginx.html#enable-https">官方说明</a></p>
+</blockquote>
+<p>启动容器</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">docker-compose up -d</span><br><span class="line">...</span><br><span class="line">docker ps</span><br><span class="line">CONTAINER ID     IMAGE                    PORTS                                      NAMES</span><br><span class="line">23621d9fe059     twang2218&#x2F;gitlab-ce-zh   22&#x2F;tcp, 80&#x2F;tcp, 443&#x2F;tcp                    gitlab_gitlab_1</span><br><span class="line">5a47c2dd8ebf     jwilder&#x2F;nginx-proxy      0.0.0.0:80-&gt;80&#x2F;tcp, 0.0.0.0:443-&gt;443&#x2F;tcp   proxy</span><br></pre></td></tr></table></figure>
+
+<p>启动后初始化会有几分钟时间, 之后通过 <code>https://foo.bar.com</code> 访问就能看到GitLab的初始页面</p>
+<p>设置好管理员账号后创建测试仓库就能看到仓库默认使用https</p>
+<p><img src="https://cdn2.hteen.cn/public/awrhk.jpg"></p>
+<blockquote>
+<p>关于如何使用SSH访问仓库可以<a target="_blank" rel="noopener" href="https://github.com/twang2218/gitlab-ce-zh#%E9%85%8D%E7%BD%AE-ssh-%E7%AB%AF%E5%8F%A3">查看文档</a></p>
+</blockquote>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://example.com/2017/2285d9c24551/" data-id="ckfxjv2o20003b3cgeja08iv8" class="article-share-link">Share</a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/docker/" rel="tag">docker</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/gitlab/" rel="tag">gitlab</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/https/" rel="tag">https</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/nginx/" rel="tag">nginx</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/proxy/" rel="tag">proxy</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+  
+    <a href="/2016/9bcd8944c458/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">使用Docker搭建Ngrok服务器</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/docker/" style="font-size: 20px;">docker</a> <a href="/tags/gitlab/" style="font-size: 10px;">gitlab</a> <a href="/tags/https/" style="font-size: 10px;">https</a> <a href="/tags/nginx/" style="font-size: 10px;">nginx</a> <a href="/tags/ngrok/" style="font-size: 10px;">ngrok</a> <a href="/tags/proxy/" style="font-size: 10px;">proxy</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">归档</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/05/">五月 2017</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/06/">六月 2016</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2017/2285d9c24551/">Docker安装GitLab并启用Nginx代理HTTPS</a>
+          </li>
+        
+          <li>
+            <a href="/2016/9bcd8944c458/">使用Docker搭建Ngrok服务器</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      &copy; 2020 hteen<br>
+      Powered by <a href="http://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+
+
+  
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+  
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+  </div>
+</body>
+</html>
